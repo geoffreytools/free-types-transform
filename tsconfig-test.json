@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "plugins": [{
+            "transform": "./dist/transformer.js",
+            "type": "program",
+            "afterDeclarations": true,
+        }],
+        "outDir": "./test_dist/",
+        "declaration": true,
+        "declarationDir": "./test_dist/"
+    },
+    "include": ["./test/*"]
+}

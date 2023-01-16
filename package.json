@@ -1,0 +1,31 @@
+{
+  "name": "free-types-transform",
+  "version": "0.0.0",
+  "description": "Syntax sugar for handling free type constructors",
+  "main": "index.js",
+  "scripts": {
+    "test": "ttsc -p ./tsconfig-test.json",
+    "watch": "tsc --watch -p ./tsconfig-build.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geoffreytools/free-types-transform.git"
+  },
+  "keywords": [
+    "typescript",
+    "hkt",
+    "type-level-programming",
+    "higher-kinded-types"
+  ],
+  "author": "Geoffrey Gourdet",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/geoffreytools/free-types-transform/issues"
+  },
+  "homepage": "https://github.com/geoffreytools/free-types-transform#readme",
+  "devDependencies": {
+    "free-types": "^0.2.9",
+    "ttypescript": "^1.5.15",
+    "typescript": "^4.9.4"
+  }
+}

@@ -1,3 +1,4 @@
+import {} from 'ts-expose-internals'
 import * as ts from 'typescript';
 
 import {
@@ -7,24 +8,24 @@ import {
     Visitor,
     VisitResult,
     TransformationContext,
-    factory
+    factory,
 } from 'typescript';
+
 
 const EXTENDS = ts.SyntaxKind.ExtendsKeyword;
 const UNKNOWN = ts.SyntaxKind.UnknownKeyword;
 
-const createFreeType = (name: string) => 
+const createFreeType = (freeName: string, sourceName: string) => 
     factory.createInterfaceDeclaration(
         undefined,
-        factory.createIdentifier(name),
+        factory.createIdentifier(freeName),
         undefined,
         [extendsType()],
         [
-            createTypeField(name.substring(1)),
+            createTypeField(sourceName),
             createConstraintsField(1)
         ]
     )
-
 
 const extendsType = () =>
     factory.createHeritageClause(
@@ -51,12 +52,10 @@ const createTypeField = (typeName: string) =>
         ])
       )
 
-
-
 const createConstraintsField = (length: number) =>
     factory.createPropertySignature(
         undefined,
-        factory.createIdentifier('constrainfactory'),
+        factory.createIdentifier('constraints'),
         undefined,
         factory.createTupleTypeNode(Array.from(
             { length },
@@ -64,23 +63,38 @@ const createConstraintsField = (length: number) =>
         ))
     )
 
+const getName = (node: ts.TypeReferenceNode): string | null => 
+    ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)
+    ? node.typeName.escapedText.toString()
+    : null
 
-export default function (/*opts?: Opts*/) {
-    function visitor(ctx: TransformationContext, sf: SourceFile): Visitor {
-        return function recursive (node: Node): VisitResult<Node> {
-            if(ts.isTypeAliasDeclaration(node)) {
-                const name = node.name.escapedText.toString();
-                if(name[0] === '$') {
-                    return createFreeType(name)
-                } else {
-                    return node;
+
+export const transformer = (instance: typeof ts, ctx: TransformationContext, sf: SourceFile): Visitor =>
+    function visitor (node: Node): VisitResult<Node> {
+        if(ts.isTypeAliasDeclaration(node)) {
+            const freeName = node.name.escapedText.toString();
+            const type = node.type;
+            if(ts.isTypeReferenceNode(type)) {
+                const typeName = type.typeName
+                if(ts.isIdentifier(typeName)) {
+                    if(typeName.escapedText.toString() === 'Free') {
+                        if(type.typeArguments && type.typeArguments.length === 1) {
+                            const source = type.typeArguments[0];
+                            if(ts.isTypeReferenceNode(source)) {
+                                const name = getName(source);
+                                if(name !== null) {
+                                    return createFreeType(freeName, name);
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            return ts.visitEachChild(node, recursive, ctx)
+            return node;
         }
+        return instance.visitEachChild(node, visitor, ctx)
     }
 
-    return (ctx: TransformationContext): Transformer<SourceFile> => {
-        return (sf: SourceFile) => ts.visitNode(sf, visitor(ctx, sf))
-    }
-}
+export default () =>
+    (ctx: TransformationContext): Transformer<SourceFile> => 
+        (sf: SourceFile) => ts.visitNode(sf, transformer(ts, ctx, sf))

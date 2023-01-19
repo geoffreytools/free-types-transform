@@ -1,9 +1,9 @@
 import { Type, apply } from 'free-types/core'
 
-export { Type };
+type Free<T> = any;
 
-type Foo<A> = { foo: A };
+export type Foo<A> = { foo: A };
 
-export type $Foo = Foo<any>
+export type $Foo = Free<Foo>;
 
-export type Bar = apply<$Foo, [1]>
+export type Application = apply<$Foo, [1]>

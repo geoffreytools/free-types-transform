@@ -1,10 +1,12 @@
 {
     "compilerOptions": {
-        "plugins": [{
-            "transform": "./dist/transformer.js",
-            "type": "program",
-            "afterDeclarations": true,
-        }],
+        "plugins": [
+            {
+                "transform": "./dist/programTransformer.js",
+                "transformProgram": true
+            }
+        ],
+        "lib": ["ES2016"],
         "outDir": "./test_dist/",
         "declaration": true,
         "declarationDir": "./test_dist/"

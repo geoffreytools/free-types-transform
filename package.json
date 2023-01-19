@@ -2,10 +2,11 @@
   "name": "free-types-transform",
   "version": "0.0.0",
   "description": "Syntax sugar for handling free type constructors",
-  "main": "index.js",
+  "main": "dist/programTransformer.js",
   "scripts": {
-    "test": "ttsc -p ./tsconfig-test.json",
-    "watch": "tsc --watch -p ./tsconfig-build.json"
+    "watch": "onchange 'src/**/*.ts' 'test/**/*.ts' -- npm run build-test",
+    "build-test": "tsc -p ./tsconfig-build.json && tsc -p ./tsconfig-test.json",
+    "patch": "ts-patch install"
   },
   "repository": {
     "type": "git",
@@ -24,8 +25,10 @@
   },
   "homepage": "https://github.com/geoffreytools/free-types-transform#readme",
   "devDependencies": {
-    "free-types": "^0.2.9",
-    "ttypescript": "^1.5.15",
+    "@types/ts-expose-internals": "npm:ts-expose-internals@4.9.4",
+    "free-types": "^0.3.0",
+    "onchange": "^7.1.0",
+    "ts-patch": "^2.1.0",
     "typescript": "^4.9.4"
   }
 }

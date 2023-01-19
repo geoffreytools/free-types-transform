@@ -2,8 +2,9 @@
     "compilerOptions": {
         "outDir": "./dist/",
         "declaration": false,
-        "target": "ESNext",
+        "lib": ["ES2016"],
         "module": "CommonJS",
+        "esModuleInterop": true,
         "moduleResolution": "node"
     },
     "include": ["./src/*"]

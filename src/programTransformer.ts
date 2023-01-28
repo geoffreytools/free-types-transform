@@ -1,4 +1,4 @@
-import { transformer } from './transformer';
+import { transformer, addRelevantImports } from './transformer';
 
 import * as ts from 'typescript';
 
@@ -13,8 +13,9 @@ import {} from 'ts-expose-internals'
 
 const transformAst = (program: ts.Program) => function(this: typeof ts, context: TransformationContext) {
     const checker = program.getTypeChecker();
-    return (sourceFile: SourceFile) =>
-        this.visitEachChild(sourceFile, transformer(this, context, sourceFile, checker), context);
+    return (sourceFile: SourceFile) => addRelevantImports(
+        this.visitEachChild(sourceFile, transformer(this, context, sourceFile, checker), context)
+    );
 }
 
 

@@ -11,6 +11,24 @@ import {
     factory,
 } from 'typescript';
 
+type PossibleImport = 'Type' | 'Const' | 'Checked' | 'Lossy' | 'At';
+
+export const needsImporting = new Set<PossibleImport>();
+
+export const addRelevantImports = (sf: ts.SourceFile) => {
+    const imports = Array.from(needsImporting)
+
+    return factory.updateSourceFile(sf, [factory.createImportDeclaration(
+        undefined,
+        factory.createImportClause(
+            false, undefined, factory.createNamedImports(imports.map(createNamedImport))
+        ), factory.createStringLiteral('free-types/core')
+    ), ...sf.statements])
+}
+
+const createNamedImport = (name: string) => factory.createImportSpecifier(
+    false, undefined, factory.createIdentifier(name)
+)
 
 const EXTENDS = ts.SyntaxKind.ExtendsKeyword;
 const UNKNOWN = ts.SyntaxKind.UnknownKeyword;
@@ -18,14 +36,18 @@ const UNKNOWN = ts.SyntaxKind.UnknownKeyword;
 type ConstFreeTypeProps = { freeName: string, sourceName: string }
 type FreeTypeProps = ConstFreeTypeProps & { constraints: ts.TypeNode[] };
 
-const createConstFreeType = ({freeName, sourceName }: ConstFreeTypeProps) =>
-    factory.createTypeAliasDeclaration(undefined, freeName, undefined, factory.createTypeReferenceNode(factory.createIdentifier('Const'), [
+const createConstFreeType = ({freeName, sourceName }: ConstFreeTypeProps) => {
+    needsImporting.add('Const');
+
+    return factory.createTypeAliasDeclaration(undefined, freeName, undefined, factory.createTypeReferenceNode(factory.createIdentifier('Const'), [
         factory.createTypeReferenceNode(sourceName)
       ]))
+}
 
+const createFreeType = ({freeName, sourceName, constraints }: FreeTypeProps) => {
+    needsImporting.add('Type');
 
-const createFreeType = ({freeName, sourceName, constraints }: FreeTypeProps) =>
-    factory.createInterfaceDeclaration(
+    return factory.createInterfaceDeclaration(
         undefined,
         factory.createIdentifier(freeName),
         undefined,
@@ -35,7 +57,7 @@ const createFreeType = ({freeName, sourceName, constraints }: FreeTypeProps) =>
             createConstraintsField(constraints)
         ]
     )
-
+}
 
 const createType = () => factory.createExpressionWithTypeArguments(
     factory.createIdentifier('Type'), []
@@ -44,8 +66,10 @@ const createType = () => factory.createExpressionWithTypeArguments(
 const extendsType = (Type: ts.ExpressionWithTypeArguments = createType()) =>
     factory.createHeritageClause(EXTENDS, [Type])
 
-const createTypeField = (typeName: string, constraints: ts.TypeNode[]) => 
-     factory.createPropertySignature(
+const createTypeField = (typeName: string, constraints: ts.TypeNode[]) => {
+    needsImporting.add('Checked');
+
+    return factory.createPropertySignature(
         undefined,
         factory.createIdentifier('type'),
         undefined,
@@ -61,7 +85,7 @@ const createTypeField = (typeName: string, constraints: ts.TypeNode[]) =>
             )
         )
       )
-
+}
 
 const createConstraintsField = (constraints: ts.TypeNode[]) =>
     factory.createPropertySignature(

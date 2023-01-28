@@ -11,9 +11,10 @@ import {} from 'ts-expose-internals'
 
 // AST Transformer
 
-function transformAst(this: typeof ts, context: TransformationContext) {
+const transformAst = (program: ts.Program) => function(this: typeof ts, context: TransformationContext) {
+    const checker = program.getTypeChecker();
     return (sourceFile: SourceFile) =>
-        this.visitEachChild(sourceFile, transformer(this, context, sourceFile), context);
+        this.visitEachChild(sourceFile, transformer(this, context, sourceFile, checker), context);
 }
 
 
@@ -32,7 +33,7 @@ export default function transformProgram(
   /* Transform AST */
   const transformedSource = tsInstance.transform(
     /* sourceFiles */ program.getSourceFiles().filter(sourceFile => rootFileNames.includes(sourceFile.fileName)),
-    /* transformers */ [ transformAst.bind(tsInstance) ],
+    /* transformers */ [ transformAst(program).bind(tsInstance) ],
     compilerOptions
   ).transformed;
 

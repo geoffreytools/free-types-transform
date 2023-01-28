@@ -81,7 +81,10 @@ const isFreeExpression = (node: Node): node is FreeExpression => Boolean(
     && ts.isIdentifier(node.typeArguments[0].typeName)
 );
 
-const transformTypeAliasDeclaration = (node: ts.TypeAliasDeclaration): VisitResult<Node> => {
+const transformTypeAliasDeclaration = (
+    node: ts.TypeAliasDeclaration,
+    checker: ts.TypeChecker
+): VisitResult<Node> => {
     const freeName = node.name.escapedText.toString();
     const type = node.type;
     if(isFreeExpression(type)) {
@@ -96,14 +99,15 @@ const transformTypeAliasDeclaration = (node: ts.TypeAliasDeclaration): VisitResu
 export const transformer = (
     instance: typeof ts,
     ctx: TransformationContext,
-    sf: SourceFile
+    sf: SourceFile,
+    checker: ts.TypeChecker
 ): Visitor => function visitor (node: Node): VisitResult<Node> {
     if (ts.isTypeAliasDeclaration(node)) {
-        return transformTypeAliasDeclaration(node);
+        return transformTypeAliasDeclaration(node, checker);
     }
     else return instance.visitEachChild(node, visitor, ctx)
 }
 
-export default (): ts.TransformerFactory<ts.SourceFile> =>
+export default (program: ts.Program): ts.TransformerFactory<ts.SourceFile> =>
     (ctx: TransformationContext): Transformer<SourceFile> => 
-        (sf: SourceFile) => ts.visitNode(sf, transformer(ts, ctx, sf))
+        (sf: SourceFile) => ts.visitNode(sf, transformer(ts, ctx, sf, program.getTypeChecker()))

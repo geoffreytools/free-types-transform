@@ -63,38 +63,47 @@ const createConstraintsField = (length: number) =>
         ))
     )
 
-const getName = (node: ts.TypeReferenceNode): string | null => 
-    ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)
-    ? node.typeName.escapedText.toString()
-    : null
+type SourceType = ts.TypeReferenceNode & {
+    typeName: ts.Identifier
+}
 
+type FreeExpression = ts.TypeReferenceNode & {
+    typeName: ts.Identifier & { escapedText: { toString(): 'free' }},
+    typeArguments: [SourceType, ...ts.TypeReferenceNode[]]
+}
 
-export const transformer = (instance: typeof ts, ctx: TransformationContext, sf: SourceFile): Visitor =>
-    function visitor (node: Node): VisitResult<Node> {
-        if(ts.isTypeAliasDeclaration(node)) {
-            const freeName = node.name.escapedText.toString();
-            const type = node.type;
-            if(ts.isTypeReferenceNode(type)) {
-                const typeName = type.typeName
-                if(ts.isIdentifier(typeName)) {
-                    if(typeName.escapedText.toString() === 'Free') {
-                        if(type.typeArguments && type.typeArguments.length === 1) {
-                            const source = type.typeArguments[0];
-                            if(ts.isTypeReferenceNode(source)) {
-                                const name = getName(source);
-                                if(name !== null) {
-                                    return createFreeType(freeName, name);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return node;
-        }
-        return instance.visitEachChild(node, visitor, ctx)
+const isFreeExpression = (node: Node): node is FreeExpression => Boolean(
+    ts.isTypeReferenceNode(node)
+    && ts.isIdentifier(node.typeName)
+    && node.typeName.escapedText.toString() === 'free'
+    && node.typeArguments && node.typeArguments.length > 0
+    && ts.isTypeReferenceNode(node.typeArguments[0])
+    && ts.isIdentifier(node.typeArguments[0].typeName)
+);
+
+const transformTypeAliasDeclaration = (node: ts.TypeAliasDeclaration): VisitResult<Node> => {
+    const freeName = node.name.escapedText.toString();
+    const type = node.type;
+    if(isFreeExpression(type)) {
+        const source = type.typeArguments[0];
+        const sourceIdentifier = source.typeName;
+        const sourceName = sourceIdentifier.escapedText.toString();
+        return createFreeType(freeName, sourceName);
     }
+    else return node;
+}
 
-export default () =>
+export const transformer = (
+    instance: typeof ts,
+    ctx: TransformationContext,
+    sf: SourceFile
+): Visitor => function visitor (node: Node): VisitResult<Node> {
+    if (ts.isTypeAliasDeclaration(node)) {
+        return transformTypeAliasDeclaration(node);
+    }
+    else return instance.visitEachChild(node, visitor, ctx)
+}
+
+export default (): ts.TransformerFactory<ts.SourceFile> =>
     (ctx: TransformationContext): Transformer<SourceFile> => 
         (sf: SourceFile) => ts.visitNode(sf, transformer(ts, ctx, sf))

@@ -15,52 +15,60 @@ import {
 const EXTENDS = ts.SyntaxKind.ExtendsKeyword;
 const UNKNOWN = ts.SyntaxKind.UnknownKeyword;
 
-const createFreeType = (freeName: string, sourceName: string) => 
+type ConstFreeTypeProps = { freeName: string, sourceName: string }
+type FreeTypeProps = ConstFreeTypeProps & { constraints: ts.TypeNode[] };
+
+const createConstFreeType = ({freeName, sourceName }: ConstFreeTypeProps) =>
+    factory.createTypeAliasDeclaration(undefined, freeName, undefined, factory.createTypeReferenceNode(factory.createIdentifier('Const'), [
+        factory.createTypeReferenceNode(sourceName)
+      ]))
+
+
+const createFreeType = ({freeName, sourceName, constraints }: FreeTypeProps) =>
     factory.createInterfaceDeclaration(
         undefined,
         factory.createIdentifier(freeName),
         undefined,
         [extendsType()],
         [
-            createTypeField(sourceName),
-            createConstraintsField(1)
+            createTypeField(sourceName, constraints),
+            createConstraintsField(constraints)
         ]
     )
 
-const extendsType = () =>
-    factory.createHeritageClause(
-        EXTENDS, [
-            factory.createExpressionWithTypeArguments(
-                factory.createIdentifier('Type'),
-                []
-            )
-        ]
-    )
 
-const createTypeField = (typeName: string) => 
-    factory.createPropertySignature(
+const createType = () => factory.createExpressionWithTypeArguments(
+    factory.createIdentifier('Type'), []
+);
+
+const extendsType = (Type: ts.ExpressionWithTypeArguments = createType()) =>
+    factory.createHeritageClause(EXTENDS, [Type])
+
+const createTypeField = (typeName: string, constraints: ts.TypeNode[]) => 
+     factory.createPropertySignature(
         undefined,
         factory.createIdentifier('type'),
         undefined,
-        factory.createTypeReferenceNode(factory.createIdentifier(typeName), [
-          factory.createIndexedAccessTypeNode(
-            factory.createThisTypeNode(),
-            factory.createLiteralTypeNode(
-                factory.createNumericLiteral('0')
+        factory.createTypeReferenceNode(
+            factory.createIdentifier(typeName),
+            constraints.map((constraint, i) =>
+                factory.createTypeReferenceNode(factory.createIdentifier('Checked'), [
+                factory.createLiteralTypeNode(
+                    factory.createNumericLiteral(i)
+                ),
+                factory.createThisTypeNode()
+              ])
             )
-          )
-        ])
+        )
       )
 
-const createConstraintsField = (length: number) =>
+
+const createConstraintsField = (constraints: ts.TypeNode[]) =>
     factory.createPropertySignature(
         undefined,
         factory.createIdentifier('constraints'),
         undefined,
-        factory.createTupleTypeNode(Array.from(
-            { length },
-            () => factory.createKeywordTypeNode(UNKNOWN)
-        ))
+        factory.createTupleTypeNode(constraints)
     )
 
 type SourceType = ts.TypeReferenceNode & {
@@ -81,17 +89,31 @@ const isFreeExpression = (node: Node): node is FreeExpression => Boolean(
     && ts.isIdentifier(node.typeArguments[0].typeName)
 );
 
+const getConstraintOrUnknown = (param: ts.TypeParameterDeclaration) =>
+    param.constraint || factory.createKeywordTypeNode(UNKNOWN)
+
 const transformTypeAliasDeclaration = (
     node: ts.TypeAliasDeclaration,
     checker: ts.TypeChecker
 ): VisitResult<Node> => {
     const freeName = node.name.escapedText.toString();
-    const type = node.type;
-    if(isFreeExpression(type)) {
-        const source = type.typeArguments[0];
+    if(isFreeExpression(node.type)) {
+        const source = node.type.typeArguments[0];
         const sourceIdentifier = source.typeName;
         const sourceName = sourceIdentifier.escapedText.toString();
-        return createFreeType(freeName, sourceName);
+        const symbol = checker.getSymbolAtLocation(sourceIdentifier);
+        const firstDeclaration = symbol?.declarations?.[0];
+
+        if(firstDeclaration) {
+            if('typeParameters' in firstDeclaration && Array.isArray(firstDeclaration.typeParameters)) {
+                const constraints = firstDeclaration.typeParameters
+                    .filter(ts.isTypeParameterDeclaration)
+                    .map(getConstraintOrUnknown)
+                return createFreeType({ freeName, sourceName, constraints });
+            } else {
+                return createConstFreeType({ freeName, sourceName });
+            }
+        } else return node;
     }
     else return node;
 }

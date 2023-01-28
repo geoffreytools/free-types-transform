@@ -1,9 +1,7 @@
-import { Type, apply } from 'free-types/core'
+type Foo<A extends string, B extends number> = `${A}${B}`
 
-type Free<T> = any;
+type $Foo = free<Foo>;
 
-export type Foo<A> = { foo: A };
+import { apply } from 'free-types'
 
-export type $Foo = Free<Foo>;
-
-export type Application = apply<$Foo, [1]>
+export type Application = apply<$Foo, ['A', 2]>
